@@ -1,0 +1,9 @@
+name = "athir-studio-mvp"
+compatibility_date = "2026-09-22"
+pages_build_output_dir = "dist"
+
+# Configure this binding in Cloudflare Pages after creating a KV namespace.
+# Replace the placeholder namespace id before using Wrangler directly.
+# [[kv_namespaces]]
+# binding = "SITE_KV"
+# id = "REPLACE_WITH_KV_NAMESPACE_ID"
