@@ -57,16 +57,11 @@ export default function Admin(props: { data: SiteData; onDataChange: (data: Site
   }, [locale]);
 
   return authenticated ? (
-    <>
-      <button
-        className="admin-language-toggle"
-        onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
-        aria-label={locale === 'ar' ? 'التبديل إلى الإنجليزية' : 'Switch to Arabic'}
-      >
-        {locale === 'ar' ? 'AR | EN' : 'EN | AR'}
-      </button>
-      <AdminPanel {...props} locale={locale} />
-    </>
+    <AdminPanel
+      {...props}
+      locale={locale}
+      onToggleLocale={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
+    />
   ) : (
     <LoginGate brand={props.data.brand} locale={locale} onSuccess={() => setAuthenticated(true)} />
   );
@@ -114,15 +109,11 @@ function LoginGate({
         body: JSON.stringify({ email, password }),
       });
       if (!response.ok) {
-        throw new Error(
-          en ? 'Invalid credentials.' : 'بيانات الدخول غير صحيحة.',
-        );
+        throw new Error(en ? 'Invalid credentials.' : 'بيانات الدخول غير صحيحة.');
       }
       onSuccess();
     } catch {
-      setError(
-        en ? 'Invalid credentials.' : 'بيانات الدخول غير صحيحة.',
-      );
+      setError(en ? 'Invalid credentials.' : 'بيانات الدخول غير صحيحة.');
     } finally {
       setBusy(false);
     }
@@ -196,14 +187,18 @@ function AdminPanel({
   data,
   onDataChange,
   locale,
+  onToggleLocale,
 }: {
   data: SiteData;
   onDataChange: (data: SiteData) => void;
   locale: 'ar' | 'en';
+  onToggleLocale: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [saved, setSaved] = useState(false);
   const [notice, setNotice] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(data.projects[0]?.id ?? '');
 
   const commit = (next: SiteData, message = locale === 'en' ? 'Changes saved' : 'تم حفظ التعديلات') => {
     const didSave = saveSiteData(next);
@@ -230,7 +225,35 @@ function AdminPanel({
           `${message} — ${locale === 'en' ? 'Local copy saved. KV pending deployment' : 'النسخة المحلية محفوظة (سيعمل السحابي فور نشر Cloudflare)'}`,
         );
       });
-    window.setTimeout(() => setSaved(false), 2000);
+    window.setTimeout(() => setSaved(false), 2200);
+  };
+
+  // زر النشر والحفظ السحابي الصريح لجميع الزوار
+  const handlePublishAll = async () => {
+    setIsPublishing(true);
+    setNotice(locale === 'en' ? 'Publishing all changes to Cloudflare KV…' : 'جارٍ نشر وتثبيت كافة التغييرات سحابياً لجميع الزوار…');
+    saveSiteData(data);
+    onDataChange(data);
+    try {
+      const response = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data }),
+      });
+      if (response.ok) {
+        setSaved(true);
+        setNotice(locale === 'en' ? '✓ All changes published successfully!' : '✓ تم حفظ ونشر التغييرات سحابياً بنجاح!');
+      } else {
+        setSaved(true);
+        setNotice(locale === 'en' ? '✓ Saved locally (Syncing with KV)' : '✓ تم الحفظ محلياً (جاهز للمزامنة مع KV)');
+      }
+    } catch {
+      setSaved(true);
+      setNotice(locale === 'en' ? '✓ Saved locally' : '✓ تم الحفظ والتثبيت محلياً بنجاح');
+    } finally {
+      setIsPublishing(false);
+      window.setTimeout(() => setSaved(false), 3000);
+    }
   };
 
   const update = (patch: Partial<SiteData>) => commit({ ...data, ...patch });
@@ -256,18 +279,26 @@ function AdminPanel({
     });
   };
 
+  // حل إضافة المشروع وفتحه للتعديل فوراً أمام المستخدم
   const addProject = () => {
+    const newId = makeId('project');
     const project: Project = {
-      id: makeId('project'),
+      id: newId,
       title: locale === 'en' ? 'New Project' : 'مشروع جديد',
       categoryId: data.categories[1]?.id ?? 'all',
       location: locale === 'en' ? 'Location' : 'الموقع',
       year: String(new Date().getFullYear()),
-      description: locale === 'en' ? 'Project description.' : 'وصف مختصر للمشروع.',
+      description: locale === 'en' ? 'Project description.' : 'وصف وتفاصيل المشروع…',
       image: data.projects[0]?.image ?? '/assets/hero-luxury-new.webp',
+      featured: true,
     };
-    update({ projects: [project, ...data.projects] });
+    commit(
+      { ...data, projects: [project, ...data.projects] },
+      locale === 'en' ? 'Project added and opened for editing' : 'تم إنشاء المشروع وفتحه للتعديل',
+    );
+    setSelectedProjectId(newId);
     setActiveTab('projects');
+    window.scrollTo({ top: 320, behavior: 'smooth' });
   };
 
   const addMaterial = () => {
@@ -279,8 +310,12 @@ function AdminPanel({
       image: data.materials[0]?.image ?? '/assets/hero-luxury-new.webp',
       tone: 'sand',
     };
-    update({ materials: [material, ...data.materials] });
+    commit(
+      { ...data, materials: [material, ...data.materials] },
+      locale === 'en' ? 'Material added' : 'تمت إضافة خامة جديدة',
+    );
     setActiveTab('catalog');
+    window.scrollTo({ top: 320, behavior: 'smooth' });
   };
 
   const restoreDefaults = () => {
@@ -345,7 +380,7 @@ function AdminPanel({
           </button>
         </div>
       </aside>
-      <main className="admin-main">
+      <main className="admin-main pb-24">
         <header className="admin-topbar">
           <div>
             <span className="admin-eyebrow">{data.brand.englishName} · ADMIN</span>
@@ -356,21 +391,27 @@ function AdminPanel({
             </h1>
           </div>
           <div className="admin-top-actions">
-            <span className="local-note">
-              <span className="status-dot" />
-              {locale === 'en' ? 'Decoupled Architecture' : 'بنية سحابية مستقلة'}
-            </span>
+            {/* زر تبديل اللغة المدمج بدون تداخل */}
+            <button
+              className="admin-language-toggle"
+              onClick={onToggleLocale}
+              type="button"
+            >
+              {locale === 'ar' ? 'English' : 'عربي'}
+            </button>
             <a className="admin-view" href="/">
-              <LogOut size={15} /> {locale === 'en' ? 'Back to site' : 'العودة للموقع'}
+              <LogOut size={15} /> {locale === 'en' ? 'Back' : 'الخروج'}
             </a>
           </div>
         </header>
+
         {notice && (
           <div className={`admin-toast ${saved ? 'success' : ''}`}>
             <Check size={16} />
-            {notice}
+            <span>{notice}</span>
           </div>
         )}
+
         {activeTab === 'overview' && <Overview data={data} onSelect={setActiveTab} locale={locale} />}
         {activeTab === 'whitelabel' && (
           <WhiteLabelEditor data={data} updateBrand={updateBrand} commit={commit} locale={locale} />
@@ -391,6 +432,8 @@ function AdminPanel({
             addProject={addProject}
             addCategory={addCategory}
             deleteCategory={deleteCategory}
+            selected={selectedProjectId}
+            setSelected={setSelectedProjectId}
             locale={locale}
           />
         )}
@@ -406,6 +449,29 @@ function AdminPanel({
           />
         )}
       </main>
+
+      {/* شريط الحفظ والنشر السحابي الرئيسي المثبت أسفل الشاشة */}
+      <footer className="admin-floating-save-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span className="status-dot" style={{ background: '#10b981' }} />
+          <span style={{ fontSize: '13px', color: '#ded8c9', fontWeight: 500 }}>
+            {locale === 'en' ? 'Cloud Sync Ready' : 'النظام متزامن وجاهز للنشر'}
+          </span>
+        </div>
+        <button
+          className="button button-gold"
+          onClick={handlePublishAll}
+          disabled={isPublishing}
+          style={{ minHeight: '44px', padding: '0 24px', cursor: 'pointer', gap: '8px' }}
+        >
+          <Save size={16} />
+          <span>
+            {isPublishing
+              ? (locale === 'en' ? 'Publishing…' : 'جارٍ النشر…')
+              : (locale === 'en' ? 'Save & Publish Live' : 'حفظ ونشر التغييرات للجميع')}
+          </span>
+        </button>
+      </footer>
     </div>
   );
 }
@@ -940,6 +1006,8 @@ function ProjectsEditor({
   addProject,
   addCategory,
   deleteCategory,
+  selected,
+  setSelected,
   locale,
 }: {
   data: SiteData;
@@ -947,9 +1015,10 @@ function ProjectsEditor({
   addProject: () => void;
   addCategory: () => void;
   deleteCategory: (id: string) => void;
+  selected: string;
+  setSelected: (id: string) => void;
   locale: 'ar' | 'en';
 }) {
-  const [selected, setSelected] = useState(data.projects[0]?.id ?? '');
   const project = data.projects.find((item) => item.id === selected) ?? data.projects[0];
   const updateProject = (patch: Partial<Project>) =>
     project &&
