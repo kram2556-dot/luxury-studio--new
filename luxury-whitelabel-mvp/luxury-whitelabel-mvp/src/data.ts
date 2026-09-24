@@ -162,10 +162,10 @@ export const defaultData: SiteData = {
     },
   ],
   stats: [
-    { value: 12, valueAr: '١٢', valueEn: '12', suffix: '+', label: 'عاماً من الخبرة' },
-    { value: 86, valueAr: '٨٦', valueEn: '86', suffix: '+', label: 'مشروعاً مكتملًا' },
-    { value: 97, valueAr: '٩٧', valueEn: '97', suffix: '%', label: 'رضا العملاء' },
-    { value: 14, valueAr: '١٤', valueEn: '14', suffix: '', label: 'جائزة وشهادة' },
+    { value: 12, valueAr: '12', valueEn: '12', suffix: '+', label: 'عاماً من الخبرة' },
+    { value: 86, valueAr: '86', valueEn: '86', suffix: '+', label: 'مشروعاً مكتملًا' },
+    { value: 97, valueAr: '97', valueEn: '97', suffix: '%', label: 'رضا العملاء' },
+    { value: 14, valueAr: '14', valueEn: '14', suffix: '', label: 'جائزة وشهادة' },
   ],
   categories: [
     { id: 'all', name: 'كل المشاريع' },
@@ -332,10 +332,10 @@ export const defaultData: SiteData = {
         },
       ],
       stats: [
-        { value: 12, valueAr: '١٢', valueEn: '12', suffix: '+', label: 'Years Experience' },
-        { value: 86, valueAr: '٨٦', valueEn: '86', suffix: '+', label: 'Completed Projects' },
-        { value: 97, valueAr: '٩٧', valueEn: '97', suffix: '%', label: 'Client Satisfaction' },
-        { value: 14, valueAr: '١٤', valueEn: '14', suffix: '', label: 'Awards & Honors' },
+        { value: 12, valueAr: '12', valueEn: '12', suffix: '+', label: 'Years Experience' },
+        { value: 86, valueAr: '86', valueEn: '86', suffix: '+', label: 'Completed Projects' },
+        { value: 97, valueAr: '97', valueEn: '97', suffix: '%', label: 'Client Satisfaction' },
+        { value: 14, valueAr: '14', valueEn: '14', suffix: '', label: 'Awards & Honors' },
       ],
       categories: [
         { id: 'all', name: 'All Projects' },
