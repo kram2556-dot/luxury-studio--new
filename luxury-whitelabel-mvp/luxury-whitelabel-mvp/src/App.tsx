@@ -42,8 +42,12 @@ function App() {
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname);
     window.addEventListener('popstate', onPop);
+    
+    // المزامنة الفورية مع أي حفظ يتم في لوحة الإدارة
     const sync = () => setData(loadSiteData());
     window.addEventListener('site-data-updated', sync);
+    window.addEventListener('storage', sync);
+
     fetch('/api/data', { headers: { Accept: 'application/json' } })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload: { data?: SiteData } | null) => {
@@ -53,11 +57,13 @@ function App() {
         }
       })
       .catch(() => {
-        // The static seed remains available when Pages Functions or KV is not configured.
+        // الاعتماد السلس على المخزن المحلي والبيانات المدمجة
       });
+
     return () => {
       window.removeEventListener('popstate', onPop);
       window.removeEventListener('site-data-updated', sync);
+      window.removeEventListener('storage', sync);
     };
   }, []);
 
@@ -106,7 +112,6 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
     }
     descriptionMeta.setAttribute('content', pageDesc);
 
-    // Open Graph Meta Tags
     let ogTitle = document.querySelector('meta[property="og:title"]');
     if (!ogTitle) {
       ogTitle = document.createElement('meta');
@@ -133,7 +138,6 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
       ogImage.setAttribute('content', rawData.seo.ogImage);
     }
 
-    // Dynamic Favicon
     let favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!favicon) {
       favicon = document.createElement('link');
@@ -142,7 +146,6 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
     }
     favicon.href = rawData.brand.favicon || '/assets/hero-luxury-new.webp';
 
-    // Dynamic Schema.org JSON-LD injection
     let schemaScript = document.getElementById('schema-jsonld') as HTMLScriptElement | null;
     if (!schemaScript) {
       schemaScript = document.createElement('script');
@@ -169,7 +172,7 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
   }, [locale, rawData]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setIntroVisible(false), 2300);
+    const timer = window.setTimeout(() => setIntroVisible(false), 2100);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -306,7 +309,7 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
               </div>
             </div>
             <div className="hero-side-note">
-              <span>
+              <span className="dir-ltr-num">
                 01 / 0{data.heroSlides.length}
               </span>
               <span className="side-note-rule" />
@@ -344,7 +347,7 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
         <section className="statement-section" id="about">
           <div className="container statement-grid">
             <div className="section-kicker">
-              <span className="number">01</span>
+              <span className="number dir-ltr-num">01</span>
               <span className="kicker-rule" />
               <span>{t('philosophy', 'فلسفتنا')}</span>
             </div>
@@ -386,17 +389,18 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
           </div>
         </section>
 
+        {/* شريط الإحصاءات: الأرقام إنجليزية دائماً */}
         <section className="stats-strip">
           <div className="container stats-grid">
-            {data.stats.map((stat) => {
-              const displayVal =
+            {data.stats.map((stat, idx) => {
+              const rawVal =
                 locale === 'ar'
                   ? stat.valueAr || stat.value
                   : stat.valueEn || stat.value;
               return (
-                <div className="stat-item" key={stat.label}>
-                  <span className="stat-value">
-                    {displayVal}
+                <div className="stat-item" key={stat.label || idx}>
+                  <span className="stat-value dir-ltr-num">
+                    {rawVal}
                     <small>{stat.suffix}</small>
                   </span>
                   <span className="stat-label">{stat.label}</span>
@@ -406,6 +410,7 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
           </div>
         </section>
 
+        {/* قسم المشاريع والكبسولات بالأرقام على نمط Clear Vision ونبيل خميس */}
         <section className="section section-projects" id="projects">
           <div className="container">
             <SectionHeading
@@ -426,19 +431,26 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
               }
             />
             <div className="filter-row" role="tablist" aria-label="فلترة المشاريع">
-              {data.categories.map((category) => (
-                <button
-                  key={category.id}
-                  className={
-                    activeCategory === category.id ? 'filter-pill active' : 'filter-pill'
-                  }
-                  onClick={() => setActiveCategory(category.id)}
-                  role="tab"
-                  aria-selected={activeCategory === category.id}
-                >
-                  {category.name}
-                </button>
-              ))}
+              {data.categories.map((category) => {
+                const count =
+                  category.id === 'all'
+                    ? data.projects.length
+                    : data.projects.filter((p) => p.categoryId === category.id).length;
+                return (
+                  <button
+                    key={category.id}
+                    className={
+                      activeCategory === category.id ? 'filter-pill active' : 'filter-pill'
+                    }
+                    onClick={() => setActiveCategory(category.id)}
+                    role="tab"
+                    aria-selected={activeCategory === category.id}
+                  >
+                    <span>{category.name}</span>
+                    <span className="filter-pill-count dir-ltr-num">{count}</span>
+                  </button>
+                );
+              })}
             </div>
             <div className="projects-carousel-wrap">
               <button
@@ -516,7 +528,7 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
               index="03"
               title={t('materialsTitle', 'قاموس الخامات')}
               subtitle={t('materialsSubtitle', 'مواد مختارة بعين تحب الملمس، قبل الشكل.')}
-              action={<span className="section-aside">01 — 04 / LOOKBOOK</span>}
+              action={<span className="section-aside dir-ltr-num">01 — 04 / LOOKBOOK</span>}
             />
             <div className="materials-grid">
               {data.materials.map((material) => (
@@ -534,7 +546,7 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
           <div className="container comparison-layout">
             <div className="comparison-copy">
               <div className="section-kicker light">
-                <span className="number">04</span>
+                <span className="number dir-ltr-num">04</span>
                 <span className="kicker-rule" />
                 <span>{t('comparisonKicker', 'من الفكرة إلى الواقع')}</span>
               </div>
@@ -595,7 +607,7 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
             <div className="process-grid">
               {data.process.map((step, index) => (
                 <div className="process-card" key={step.id}>
-                  <span className="process-number">{step.number}</span>
+                  <span className="process-number dir-ltr-num">{step.number}</span>
                   <div className="process-icon">
                     {index === 0 ? (
                       <Compass size={21} />
@@ -666,8 +678,8 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
               href={whatsappUrl(
                 data.contact.whatsapp,
                 locale === 'ar'
-                  ? `مرحباً ${data.brand.name}، أود مناقشة مشروع تصميم جديد.`
-                  : `Hello ${data.brand.englishName || data.brand.name}, I would like to discuss a new design project.`,
+                  ? `مرحباً ${data.brand.name}، أود مناقشة مشروع جديد.`
+                  : `Hello ${data.brand.englishName || data.brand.name}, I would like to discuss a new project.`,
               )}
               target="_blank"
               rel="noreferrer"
@@ -694,7 +706,7 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
           </div>
           <div className="footer-column">
             <span className="footer-label">{t('navContact', 'تواصل')}</span>
-            <a href={`tel:${data.contact.phone}`}>{data.contact.phone}</a>
+            <a href={`tel:${data.contact.phone}`} className="dir-ltr-num">{data.contact.phone}</a>
             <a href={`mailto:${data.contact.email}`}>{data.contact.email}</a>
             <span>{data.contact.address}</span>
           </div>
@@ -707,36 +719,16 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
           <div className="footer-column socials">
             <span className="footer-label">{t('findUs', 'نحن هنا')}</span>
             <div>
-              <a
-                href={data.contact.instagram}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Instagram"
-              >
+              <a href={data.contact.instagram} target="_blank" rel="noreferrer" aria-label="Instagram">
                 <Instagram size={18} />
               </a>
-              <a
-                href={data.contact.facebook}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Facebook"
-              >
+              <a href={data.contact.facebook} target="_blank" rel="noreferrer" aria-label="Facebook">
                 <Facebook size={18} />
               </a>
-              <a
-                href={data.contact.linkedin}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="LinkedIn"
-              >
+              <a href={data.contact.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn">
                 <Linkedin size={18} />
               </a>
-              <a
-                href={data.contact.tiktok}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="TikTok"
-              >
+              <a href={data.contact.tiktok} target="_blank" rel="noreferrer" aria-label="TikTok">
                 <Music2 size={18} />
               </a>
             </div>
@@ -747,20 +739,21 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
         </div>
         <div className="container footer-bottom">
           <span>
-            © {new Date().getFullYear()} {data.brand.name}.{' '}
+            © <span className="dir-ltr-num">{new Date().getFullYear()}</span> {data.brand.name}.{' '}
             {t('footerRights', 'جميع الحقوق محفوظة.')}
           </span>
-          <span>{t('footerDescription', 'تصميم هادئ. أثر طويل.')}</span>
+          <span>{t('footerDescription', 'تصميم وتنفيذ متكامل.')}</span>
         </div>
       </footer>
 
+      {/* الأزرار العائمة الثابتة */}
       <div className="floating-actions">
         <a href={`tel:${data.contact.phone}`} aria-label="اتصال هاتفي">
           <Phone size={18} />
         </a>
         <a
           className="floating-wa"
-          href={whatsappUrl(data.contact.whatsapp, 'مرحباً، أود الاستفسار عن مشروع تصميم.')}
+          href={whatsappUrl(data.contact.whatsapp, 'مرحباً، أود الاستفسار عن تفاصيل المشروع والتنفيذ.')}
           target="_blank"
           rel="noreferrer"
         >
@@ -830,7 +823,7 @@ function SectionHeading({
     <div className="section-heading">
       <div className="heading-copy">
         <div className="section-kicker">
-          <span className="number">{index}</span>
+          <span className="number dir-ltr-num">{index}</span>
           <span className="kicker-rule" />
           <span>{document.documentElement.lang === 'en' ? 'SELECTED WORK' : 'مختارات التصميم'}</span>
         </div>
@@ -866,7 +859,7 @@ function ProjectCard({
       </button>
       <div className="project-meta">
         <span>
-          {category} · {project.year}
+          {category} · <span className="dir-ltr-num">{project.year}</span>
         </span>
         <span>{project.location}</span>
       </div>
@@ -1023,7 +1016,9 @@ function CalculatorModal({
   const [packageId, setPackageId] = useState(data.packages[1]?.id ?? data.packages[0]?.id);
   const selected = data.packages.find((item) => item.id === packageId) ?? data.packages[0];
   const total = Math.max(0, area) * (selected?.price ?? 0);
-  const formatted = new Intl.NumberFormat('ar-SA').format(total);
+  
+  // فرض الأرقام الإنجليزية دائماً في حاسبة التكلفة
+  const formatted = new Intl.NumberFormat('en-US').format(total);
   const t = (key: keyof NonNullable<SiteData['ui']>, fallback: string) =>
     ui(data, locale, key, fallback);
   const whatsappText = `مرحباً ${data.brand.name}، أرغب في طلب تقدير مبدئي.\nالمساحة: ${area} م²\nالباقة: ${selected?.name}\nالتقدير التقريبي: ${formatted} ريال`;
@@ -1051,13 +1046,14 @@ function CalculatorModal({
           </h2>
           <p>
             {locale === 'ar'
-              ? 'أدخل المساحة واختر مستوى العناية الذي يناسب مشروعك. النتيجة تقديرية وليست عرضاً ملزماً.'
-              : 'Enter the area and choose the level of care that fits your project. This is an estimate, not a binding offer.'}
+              ? 'أدخل المساحة واعرف التكلفة التقديرية لمشروعك.'
+              : 'Enter the area and choose the level of care that fits your project.'}
           </p>
         </div>
         <div className="calc-controls">
           <label>
-            {t('area', 'المساحة بالمتر المربع')} <strong>{area} م²</strong>
+            {t('area', 'المساحة بالمتر المربع')}{' '}
+            <strong className="dir-ltr-num">{area} م²</strong>
           </label>
           <input
             type="range"
@@ -1067,7 +1063,7 @@ function CalculatorModal({
             value={area}
             onChange={(event) => setArea(Number(event.target.value))}
           />
-          <div className="range-labels">
+          <div className="range-labels dir-ltr-num">
             <span>30 م²</span>
             <span>1000 م²</span>
           </div>
@@ -1082,7 +1078,9 @@ function CalculatorModal({
                 onClick={() => setPackageId(pkg.id)}
               >
                 <span>{pkg.name}</span>
-                <small>{pkg.price.toLocaleString('ar-SA')} ريال / م²</small>
+                <small className="dir-ltr-num">
+                  {new Intl.NumberFormat('en-US').format(pkg.price)} ريال / م²
+                </small>
                 {packageId === pkg.id && <Check size={16} />}
               </button>
             ))}
@@ -1090,7 +1088,7 @@ function CalculatorModal({
         </div>
         <div className="calc-total">
           <span>{t('estimate', 'التقدير المبدئي')}</span>
-          <strong>
+          <strong className="dir-ltr-num">
             {formatted} <small>ريال</small>
           </strong>
           <a
