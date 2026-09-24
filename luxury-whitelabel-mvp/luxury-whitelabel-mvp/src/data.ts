@@ -103,7 +103,9 @@ export type SiteData = {
   partners: string[];
   ui?: UiCopy;
   translations?: {
-    en?: Partial<Omit<SiteData, 'translations'>>;
+    en?: Omit<Partial<Omit<SiteData, 'translations'>>, 'contact'> & {
+      contact?: Partial<SiteData['contact']>;
+    };
   };
 };
 

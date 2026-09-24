@@ -191,6 +191,32 @@ function PublicSite({ data: rawData }: { data: SiteData }) {
     };
   }, [lightbox, menuOpen]);
 
+  useEffect(() => {
+    const motionTargets = document.querySelectorAll<HTMLElement>(
+      '.statement-grid, .stats-grid, .section-heading, .filter-row, .project-card, .materials-grid, .material-card, .comparison-copy, .comparison-visual, .process-card, .partners-inner, .cta-inner',
+    );
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      motionTargets.forEach((element) => element.classList.add('is-visible'));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { rootMargin: '0px 0px -10% 0px', threshold: 0.08 },
+    );
+
+    motionTargets.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [locale, data.projects.length, data.materials.length, data.process.length]);
+
   const hero = data.heroSlides[activeSlide] ?? data.heroSlides[0];
   const filteredProjects = useMemo(
     () =>
